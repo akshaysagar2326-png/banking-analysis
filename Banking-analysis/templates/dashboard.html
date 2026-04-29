@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BankDash | India Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --dark: #0f172a; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; }
+        .sidebar { width: 250px; height: 100vh; background: var(--dark); color: white; padding: 20px; position: fixed; }
+        .main { margin-left: 290px; padding: 30px; width: 100%; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .kpi-card h3 { color: #64748b; font-size: 14px; margin: 0; }
+        .kpi-card .val { font-size: 24px; font-weight: bold; margin-top: 10px; color: #1e293b; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .controls { display: flex; gap: 15px; align-items: center; background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        input[type="date"], input[type="file"] { padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
+        #status-msg { font-size: 14px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>BankDash</h2>
+        <p style="color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 10px;">Fintech Analytics</p>
+        <nav style="margin-top: 20px; display: flex; flex-direction: column; gap: 15px;">
+            <a href="#" style="color: white; text-decoration: none;">Dashboard</a>
+            <a href="{{ url_for('logout') }}" style="color: #f87171; text-decoration: none;">Logout</a>
+        </nav>
+    </div>
+
+    <div class="main">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <h1 style="margin: 0;">Welcome, {{ username }}</h1>
+            <div id="status-msg">Ready for Analysis</div>
+        </header>
+
+        <section class="controls">
+            <input type="file" id="csvFile">
+            <button class="btn btn-primary" onclick="uploadFile()">Upload CSV</button>
+            <div style="width: 2px; height: 30px; background: #e2e8f0;"></div>
+            <input type="date" id="start_date">
+            <input type="date" id="end_date">
+            <button class="btn btn-success" onclick="runAnalysis()">Analyze Data</button>
+        </section>
+
+        <div class="kpi-grid">
+            <div class="card kpi-card">
+                <h3>Total Loans</h3>
+                <div class="val" id="total_loans">₹0</div>
+            </div>
+            <div class="card kpi-card">
+                <h3>Total Deposits</h3>
+                <div class="val" id="total_deposits">₹0</div>
+            </div>
+            <div class="card kpi-card">
+                <h3>Avg Balance</h3>
+                <div class="val" id="avg_balance">₹0</div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 20px;">
+            <div class="card">
+                <h3>Customer Segmentation</h3>
+                <div style="height: 300px;"><canvas id="myChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h3>Summary Report</h3>
+                <p id="summary" style="color: #64748b; line-height: 1.6;">No data analyzed yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+        const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+
+        async function uploadFile() {
+            const file = document.getElementById('csvFile').files[0];
+            if (!file) return alert("Select file");
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            document.getElementById('status-msg').innerText = "Uploading...";
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            
+            if (res.ok) {
+                document.getElementById('status-msg').innerText = "✓ " + data.filename;
+                document.getElementById('status-msg').style.color = "#10b981";
+            } else {
+                alert(data.error);
+            }
+        }
+
+        async function runAnalysis() {
+            const payload = {
+                start_date: document.getElementById('start_date').value,
+                end_date: document.getElementById('end_date').value
+            };
+
+            const res = await fetch('/analyze', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (!res.ok) return alert(data.error);
+
+            document.getElementById('total_loans').innerText = inr.format(data.metrics.total_loans);
+            document.getElementById('total_deposits').innerText = inr.format(data.metrics.total_deposits);
+            document.getElementById('avg_balance').innerText = inr.format(data.metrics.avg_balance);
+            document.getElementById('summary').innerText = `Analysis complete for the selected period. Total business processed: ${inr.format(data.metrics.total_loans + data.metrics.total_deposits)}.`;
+
+            updateChart(data.segments);
+        }
+
+        function updateChart(data) {
+            const ctx = document.getElementById('myChart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Low Balance', 'Mid-Tier', 'Premium'],
+                    datasets: [{ data: data, backgroundColor: ['#ef4444', '#f59e0b', '#10b981'] }]
+                },
+                options: { maintainAspectRatio: false }
+            });
+        }
+    </script>
+</body>
+</html>

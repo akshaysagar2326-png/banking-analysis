@@ -1,0 +1,11 @@
+customer_id,gender,banking_relationship,institution_advisor,account_type,occupation,income_band,nationality,deposit
+1,Male,Individual,Yes,Savings,Engineer,High,Indian,70000
+2,Female,Corporate,No,Checking,Doctor,High,Indian,120000
+3,Male,Individual,Yes,Savings,Student,Low,Indian,20000
+4,Female,Corporate,Yes,Checking,Business,Medium,Indian,90000
+5,Male,Individual,No,Savings,Engineer,Medium,Indian,50000
+6,Female,Corporate,Yes,Checking,Lawyer,High,Indian,110000
+7,Male,Individual,No,Savings,Student,Low,Indian,15000
+8,Female,Corporate,Yes,Checking,Engineer,Medium,Indian,80000
+9,Male,Individual,Yes,Savings,Business,High,Indian,95000
+10,Female,Corporate,No,Checking,Doctor,High,Indian,130000
